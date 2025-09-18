@@ -1,7 +1,9 @@
 import std/[
   asyncdispatch,
   json,
+  sequtils,
   strtabs,
+  tables,
 ]
 
 export asyncdispatch, json
@@ -10,6 +12,9 @@ export asyncdispatch, json
 
 type
   LlmTool* = ref object of RootObj
+
+method toJson*(self: LlmTool): JsonNode {.base.} =
+  raise newException(CatchableError, "not implemented")
 
 type
   LlmFuncParam* = ref object
@@ -25,6 +30,13 @@ proc newLlmFuncParam*(name, kind, desc: string, required = true): LlmFuncParam =
   result.desc = desc
   result.required = required
 
+proc llmFuncParamFromJson*(jso: JsonNode): LlmFuncParam =
+  result.new
+  result.name = jso["name"].getStr
+  result.kind = jso["type"].getStr
+  result.desc = jso["description"].getStr
+  result.required = jso{"required"}.getBool(true)
+
 type
   LlmFunc* = ref object of LlmTool
     name*: string
@@ -37,12 +49,21 @@ proc newLlmFunc*(name, desc: string, params: seq[LlmFuncParam] = @[]): LlmFunc =
   result.desc = desc
   result.params = params
 
+proc llmFuncFromJson*(jso: JsonNode): LlmFunc =
+  result.new
+  result.name = jso["name"].getStr
+  result.desc = jso["description"].getStr
+  result.params = jso["params"].mapIt(it.llmFuncParamFromJson)
+
 type
   LlmToolCall* = ref object of RootObj
+    name*: string
+
+method toJson*(self: LlmToolCall): JsonNode {.base.} =
+  raise newException(CatchableError, "not implemented")
 
 type
   LlmFuncCall* = ref object of LlmToolCall
-    name*: string
     args*: StringTableRef
 
 proc newLLmFuncCall*(name: string, args: StringTableRef): LlmFuncCall =
@@ -50,9 +71,8 @@ proc newLLmFuncCall*(name: string, args: StringTableRef): LlmFuncCall =
   result.name = name
   result.args = args
 
-type
-  LlmToolServer* = ref object of RootObj
-    tools*: seq[LlmTool]
-
-method callTool*(self: LlmToolServer, tc: LlmToolCall): Future[string] {.base, async.} =
-  raise newException(CatchableError, "not implemented")
+method toJson*(self: LlmFuncCall): JsonNode =
+  %*{
+    "name": self.name,
+    "args": self.args.pairs.toSeq.toTable,
+  }

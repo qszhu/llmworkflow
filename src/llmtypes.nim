@@ -3,10 +3,12 @@ import llmtypes/[
   llmmessages,
   llmprovider,
   llmtool,
+  llmtoolhost,
 ]
 
 export
   llmblock,
   llmmessages,
   llmprovider,
-  llmtool
+  llmtool,
+  llmtoolhost

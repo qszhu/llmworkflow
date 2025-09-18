@@ -23,7 +23,7 @@ proc toJson(params: seq[LlmFuncParam]): JsonNode =
     "required": %*required,
   }
 
-proc toJson(self: LlmFunc): JsonNode =
+method toJson(self: LlmFunc): JsonNode =
   %*{
     "type": "function",
     "function": %*{
@@ -67,26 +67,36 @@ method addToolCallRes*(self: LmsProvider, msgs: LlmMessages, toolCallId, content
     "content": content
   }
 
+proc toJson(host: LlmToolHost): Future[seq[JsonNode]] {.async.} =
+  return (await host.getTools()).mapIt(it.toJson)
+
 method chatCompletion*(self: LmsProvider,
   model: string,
   messages: LlmMessages,
-  tools: LlmToolServer = nil,
+  toolHost: LlmToolHost = nil,
 ): Future[seq[string]] {.async.} =
   var messages = messages
   var res = await self.client.chat(model, messages = messages.messages,
-    tools = tools.tools.mapIt(it.LlmFunc.toJson))
+    tools = await toolHost.toJson,
+  )
   result.add $res
+
   if res.toolCalls.len == 0: return
-  if tools == nil:
+
+  if toolHost == nil:
     logging.warn "No tool implementation provided"
     return
+
   while res.toolCalls.len > 0:
     for toolCall in res.toolCalls:
       logging.debug "calling: ", toolCall.function.name
       self.addToolCalls messages, @[toolCall.raw]
-      let funcCall = newLLmFuncCall(toolCall.function.name, toolCall.function.arguments)
-      let content = await tools.callTool(funcCall.LlmToolCall)
+
+      let funcCall = newLlmFuncCall(toolCall.function.name, toolCall.function.arguments)
+      let content = await toolHost.callTool(funcCall)
       self.addToolCallRes messages, toolCall.id, content
+
     res = await self.client.chat(model, messages = messages.messages,
-      tools = tools.tools.mapIt(it.LlmFunc.toJson))
+      tools = await toolHost.toJson,
+    )
     result.add $res

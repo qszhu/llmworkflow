@@ -2,10 +2,10 @@ import std/[
   asyncdispatch,
 ]
 
-import llmmessages, llmtool
+import llmmessages, llmtool, llmtoolhost
 
 export asyncdispatch
-export llmmessages, llmtool
+export llmmessages, llmtool, llmtoolhost
 
 
 
@@ -28,6 +28,6 @@ method addToolCallRes*(self: LlmProvider, msgs: LlmMessages, toolCallId, content
 method chatCompletion*(self: LlmProvider,
   model: string,
   messages: LlmMessages,
-  tools: LlmToolServer = nil,
+  toolHost: LlmToolHost = nil,
 ): Future[seq[string]] {.base, async.} =
   raise newException(CatchableError, "Not implemented")
