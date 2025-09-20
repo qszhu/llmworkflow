@@ -1,0 +1,19 @@
+<block>
+  <provider>
+    <type>lms</type>
+    <host>http://localhost:1234/api/v0</host>
+  </provider>
+  <model>qwen/qwen3-8b</model>
+  <messages>
+    <message>
+      <role>user</role>
+      <content><![CDATA[
+What time is it?
+]]>
+      </content>
+    </message>
+  </messages>
+  <toolHost>
+    <server>http://localhost:2234</server>
+  </toolHost>
+</block>
