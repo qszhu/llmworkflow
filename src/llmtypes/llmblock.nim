@@ -7,7 +7,7 @@ import llmprovider
 
 
 type
-  LlmBlock = ref object
+  LlmBlock* = ref object
     provider*: LlmProvider
     model*: string
     messages*: LlmMessages

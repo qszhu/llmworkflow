@@ -39,7 +39,7 @@ type
 proc newLlmToolHost*(): LlmToolHost =
   result.new
 
-proc addServer*(self: LlmToolHost, server: string) {.async.} =
+proc addServer*(self: LlmToolHost, server: string) =
   self.servers.add server
 
 proc getServerByToolName(self: LlmToolHost, toolName: string): Future[Option[string]] {.async.} =
