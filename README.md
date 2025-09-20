@@ -1,6 +1,7 @@
 # LLM Workflow
 Proof of concept for LLM tool use with MCP like architecture using websocket as transport
 
+* xml description of an LLM block
 ```xml
 <block>
   <provider>
@@ -23,65 +24,55 @@ What time is it?
 </block>
 ```
 
-```nim
-import std/[
-  asyncdispatch,
-  asynchttpserver,
-  json,
-  times,
-]
+* tool implementation exposed by websocket (in another language)
+```python
+from datetime import datetime
+import json
 
-import ws
+from sanic import Sanic, response
 
 
 
-proc getTimeNow(): string =
-  result = $(now())
-  echo "getTimeNow(): ", result
+async def getTimeNow():
+  res = datetime.now().astimezone().isoformat()
+  print(f"getTimeNow(): {res}")
+  return res
 
-proc processToolCall(jso: JsonNode): Future[string] {.async.} =
-  echo jso
-  let funcName = jso["name"].getStr
-  case funcName
-  of "get_time_now":
-    return getTimeNow()
+async def processToolCall(jso):
+  print(jso)
+  funcName = jso["name"]
+  if funcName == "get_time_now":
+    return await getTimeNow()
   else:
     return "unknown function: " & funcName
 
-proc cb(req: Request) {.async, gcsafe.} =
-  if req.url.path == "/ws":
-    try:
-      var ws = await newWebSocket(req)
-      while ws.readyState == Open:
-        let jso = (await ws.receiveStrPacket()).parseJson
-        let res = await processToolCall(jso)
-        await ws.send($res)
-    except:
-      echo getCurrentExceptionMsg()
-  elif req.url.path == "/":
-    let headers = {
-      "Content-type": "application/json; charset=utf-8"
-    }.newHttpHeaders()
-    let resp = %*{
-      "functions": @[%*{
-        "name": "get_time_now",
-        "description": "get the current time in ISO format",
-        "params": @[],
-        "returns": %*{
-          "type": "string",
-          "description": "current time in ISO format",
-        }
-      }]
-    }
-    await req.respond(Http200, $resp, headers)
-  else:
-    await req.respond(Http404, "Not found")
+app = Sanic("timeServerApp")
 
-when isMainModule:
-  var server = newAsyncHttpServer()
-  waitFor server.serve(Port(2234), cb)
+@app.websocket("/ws")
+async def ws(request, ws):
+  async for msg in ws:
+    jso = json.loads(msg)
+    await ws.send(await processToolCall(jso))
+
+@app.get("/")
+async def functions(request):
+  return response.json({"functions": [
+    {
+      "name": "get_time_now",
+      "description": "get the current time in ISO format",
+      "params": [],
+      "returns": {
+        "type": "string",
+        "description": "current time in ISO format",
+      }
+    }
+  ]})
+
+if __name__ == "__main__":
+  app.run(host="0.0.0.0", port=2234)
 ```
 
+* run LLM block with tool calls
 ```bash
 $ nim c -rf src/main.nim assets/time.xml
 <think>
