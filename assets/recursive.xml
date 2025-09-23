@@ -1,0 +1,28 @@
+<block>
+  <provider>
+    <type>lms</type>
+    <host>http://localhost:1234/api/v0</host>
+  </provider>
+  <model>qwen/qwen3-30b-a3b-2507</model>
+  <messages>
+    <message>
+      <role>system</role>
+      <content><![CDATA[
+Use tools to fulfill user's queries.
+
+If the result of a tool call contains the tool call to itself, call the tool recursively.
+]]>
+      </content>
+    </message>
+    <message>
+      <role>user</role>
+      <content><![CDATA[
+What's the result of myfunc(20)?
+]]>
+      </content>
+    </message>
+  </messages>
+  <toolHost>
+    <server>http://localhost:6234</server>
+  </toolHost>
+</block>

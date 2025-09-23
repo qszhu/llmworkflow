@@ -2,8 +2,6 @@ import std/[
   asyncdispatch,
   json,
   sequtils,
-  strtabs,
-  tables,
 ]
 
 export asyncdispatch, json
@@ -64,9 +62,9 @@ method toJson*(self: LlmToolCall): JsonNode {.base.} =
 
 type
   LlmFuncCall* = ref object of LlmToolCall
-    args*: StringTableRef
+    args*: JsonNode
 
-proc newLLmFuncCall*(name: string, args: StringTableRef): LlmFuncCall =
+proc newLLmFuncCall*(name: string, args: JsonNode): LlmFuncCall =
   result.new
   result.name = name
   result.args = args
@@ -74,5 +72,5 @@ proc newLLmFuncCall*(name: string, args: StringTableRef): LlmFuncCall =
 method toJson*(self: LlmFuncCall): JsonNode =
   %*{
     "name": self.name,
-    "args": self.args.pairs.toSeq.toTable,
+    "args": self.args,
   }

@@ -75,19 +75,13 @@ type
   LmToolCallFunction* = ref object
     raw*: JsonNode
     name*: string
-    arguments*: StringTableRef
+    arguments*: JsonNode
 
 proc newLmToolCallFunction(jso: JsonNode): LmToolCallFunction =
   result.new
   result.raw = jso
   result.name = jso["name"].getStr
-  result.arguments = newStringTable()
-  for (k, v) in jso["arguments"].getStr.parseJson.pairs:
-    result.arguments[k] = v.getStr
-
-proc `$`*(self: LmToolCallFunction): string {.inline.} =
-  let args = self.arguments.pairs.toSeq.mapIt(&"{it[0]} = {it[1]}").join(", ")
-  &"{self.name}({args})"
+  result.arguments = jso["arguments"].getStr.parseJson
 
 type
   LmToolCall* = ref object
