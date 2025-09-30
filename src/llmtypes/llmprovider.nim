@@ -31,3 +31,14 @@ method chatCompletion*(self: LlmProvider,
   toolHost: LlmToolHost = nil,
 ): Future[seq[string]] {.base, async.} =
   raise newException(CatchableError, "Not implemented")
+
+type
+  ChatContentCb* = proc (text: string)
+
+method chatCompletionStream*(self: LlmProvider,
+  model: string,
+  messages: LlmMessages,
+  contentCb: ChatContentCb,
+  toolHost: LlmToolHost = nil,
+) {.base, async.} =
+  raise newException(CatchableError, "Not implemented")

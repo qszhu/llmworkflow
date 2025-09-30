@@ -27,8 +27,18 @@ proc newLlmBlock*(provider: LlmProvider, model: string,
   result.context = context
   result.toolHost = toolHost
 
-proc run*(self: LlmBlock) {.async.} =
+proc run*(self: LlmBlock, query = "", cb: ChatContentCb = nil) {.async.} =
   var messages = self.messages # TODO: use context
-  self.outputs = await self.provider.chatCompletion(
-    self.model, messages, self.toolHost
-  )
+  if query.len > 0:
+    # discard last user message
+    if messages.messages[^1]["role"].getStr == "user":
+      discard messages.messages.pop
+    self.provider.addUserMessage(messages, query)
+  if cb == nil:
+    self.outputs = await self.provider.chatCompletion(
+      self.model, messages, self.toolHost
+    )
+  else:
+    await self.provider.chatCompletionStream(
+      self.model, messages, cb, self.toolHost
+    )

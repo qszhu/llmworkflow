@@ -4,7 +4,7 @@ import std/[
 ]
 
 import ../llmtypes/llmprovider
-
+import ../utils
 import lms/client
 
 
@@ -68,7 +68,7 @@ method addToolCallRes*(self: LmsProvider, msgs: LlmMessages, toolCallId, content
   }
 
 proc toJson(host: LlmToolHost): Future[seq[JsonNode]] {.async.} =
-  return (await host.getTools()).mapIt(it.toJson)
+  if host == nil: @[] else: (await host.getTools()).mapIt(it.toJson)
 
 method chatCompletion*(self: LmsProvider,
   model: string,
@@ -100,3 +100,67 @@ method chatCompletion*(self: LmsProvider,
       tools = await toolHost.toJson,
     )
     result.add $res
+
+method chatCompletionStream*(self: LmsProvider,
+  model: string,
+  messages: LlmMessages,
+  contentCb: ChatContentCb,
+  toolHost: LlmToolHost = nil,
+) {.async.} =
+  var messages = messages
+  var toolCalls = newJArray()
+
+  proc chatCb(chunk: LmChatCompletionChunk) =
+    contentCb(chunk.content)
+    if chunk.toolCalls != nil:
+      toolCalls = merge(toolCalls, chunk.toolCalls)
+
+  await self.client.chatStream(model,
+    messages = messages.messages,
+    tools = await toolHost.toJson,
+    cb = chatCb,
+  )
+
+  if toolCalls.len == 0: return
+  if toolHost == nil:
+    logging.warn "No tool implementation provided"
+    return
+
+  while toolCalls.len > 0:
+    for toolCall in toolCalls:
+      let tc = toolCall.newLmToolCall
+      logging.debug "calling: ", tc.function.name
+      self.addToolCalls messages, @[tc.raw]
+
+      let funcCall = newLlmFuncCall(tc.function.name, tc.function.arguments)
+      let content = await toolHost.callTool(funcCall)
+      self.addToolCallRes messages, tc.id, content
+
+    toolCalls = newJArray()
+    await self.client.chatStream(model,
+      messages = messages.messages,
+      tools = await toolHost.toJson,
+      cb = chatCb,
+    )
+
+
+
+when isMainModule:
+  let provider = newLmsProvider("http://localhost:1234/api/v0")
+  let messages = newLlmMessages()
+  provider.addUserMessage(messages, "What time is it?")
+  let model = "qwen/qwen3-8b"
+  let toolHost = newLlmToolHost()
+  toolHost.addServer("http://localhost:2234")
+
+  when false:
+    block:
+      for reply in waitFor provider.chatCompletion(model, messages):
+        echo reply
+
+  when true:
+    block:
+      proc cb(text: string) =
+        stdout.write text
+        stdout.flushFile
+      waitFor provider.chatCompletionStream(model, messages, cb, toolHost)

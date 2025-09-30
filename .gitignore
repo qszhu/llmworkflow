@@ -1,6 +1,6 @@
 bin/
 .env
 *.db
-*.xml
 *.json
 TODO.md
+workflows/

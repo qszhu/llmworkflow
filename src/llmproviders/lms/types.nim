@@ -124,13 +124,18 @@ proc `$`*(self: LmChatCompletion): string {.inline.} =
 type
   LmChatCompletionChunk* = ref object
     raw*: JsonNode
-    contents*: seq[string]
+    role*: string
+    content*: string
+    toolCalls*: JsonNode
 
 proc newLmChatCompletionChunk*(jso: JsonNode): LmChatCompletionChunk =
   doAssert jso["object"].getStr == "chat.completion.chunk"
   result.new
   result.raw = jso
-  result.contents = jso["choices"].mapIt(it["delta"]{"content"}.getStr)
+  let delta = jso["choices"][0]["delta"]
+  result.role = delta{"role"}.getStr
+  result.content = delta{"content"}.getStr
+  result.toolCalls = delta{"tool_calls"}
 
 proc `$`*(self: LmChatCompletionChunk): string {.inline.} =
-  self.contents.join("\n")
+  self.content
