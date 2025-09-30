@@ -2,25 +2,31 @@ import std/[
   asyncdispatch,
   asynchttpserver,
   json,
+  logging,
   times,
 ]
 
 import ws
 
+import utils
 
 
-proc getTimeNow(): string =
-  result = $(now())
-  echo "getTimeNow(): ", result
+
+tools:
+  proc getTimeNow(): string =
+    result = $(now())
+    echo "getTimeNow(): ", result
 
 proc processToolCall(jso: JsonNode): Future[string] {.async.} =
-  echo jso
+  logging.debug jso
   let funcName = jso["name"].getStr
   case funcName
-  of "get_time_now":
+  of "getTimeNow":
     return getTimeNow()
   else:
     return "unknown function: " & funcName
+
+var toolDefs {.threadvar.}: JsonNode
 
 proc cb(req: Request) {.async, gcsafe.} =
   if req.url.path == "/ws":
@@ -36,21 +42,16 @@ proc cb(req: Request) {.async, gcsafe.} =
     let headers = {
       "Content-type": "application/json; charset=utf-8"
     }.newHttpHeaders()
-    let resp = %*{
-      "functions": @[%*{
-        "name": "get_time_now",
-        "description": "get the current time in ISO format",
-        "params": @[],
-        "returns": %*{
-          "type": "string",
-          "description": "current time in ISO format",
-        }
-      }]
-    }
-    await req.respond(Http200, $resp, headers)
+    await req.respond(Http200, $toolDefs, headers)
   else:
     await req.respond(Http404, "Not found")
 
 when isMainModule:
+  when not defined(release):
+    addHandler(newConsoleLogger(levelThreshold = lvlDebug))
+
+  toolDefs = toolFuncs
   var server = newAsyncHttpServer()
-  waitFor server.serve(Port(2234), cb)
+  const port = 2234
+  logging.debug "Listening on port: ", port
+  waitFor server.serve(Port(port), cb)

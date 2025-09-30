@@ -32,7 +32,7 @@ proc llmFuncParamFromJson*(jso: JsonNode): LlmFuncParam =
   result.new
   result.name = jso["name"].getStr
   result.kind = jso["type"].getStr
-  result.desc = jso["description"].getStr
+  result.desc = jso{"description"}.getStr
   result.required = jso{"required"}.getBool(true)
 
 type
@@ -50,7 +50,7 @@ proc newLlmFunc*(name, desc: string, params: seq[LlmFuncParam] = @[]): LlmFunc =
 proc llmFuncFromJson*(jso: JsonNode): LlmFunc =
   result.new
   result.name = jso["name"].getStr
-  result.desc = jso["description"].getStr
+  result.desc = jso{"description"}.getStr
   result.params = jso["params"].mapIt(it.llmFuncParamFromJson)
 
 type
