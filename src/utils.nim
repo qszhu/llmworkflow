@@ -4,27 +4,24 @@ import std/[
 
 
 
-proc merge*(a, b: JsonNode): JsonNode =
-  if a.kind == JNull and b.kind == JNull: return newJNull()
-  if a.kind == JNull: return b
-  if b.kind == JNull: return a
-  if a.kind == JArray:
-    doAssert b.kind == JArray
-    result = newJArray()
-    for i in 0 ..< max(len(a), len(b)):
-      let ai = if i < len(a): a[i] else: newJNull()
-      let bi = if i < len(b): b[i] else: newJNull()
-      result.add merge(ai, bi)
-    return
-  if a.kind == JObject:
-    doAssert b.kind == JObject
-    result = newJObject()
-    for k in a.keys:
-      let av = a[k]
-      let bv = if k in b: b[k] else: newJNull()
-      result[k] = merge(av, bv)
-    for k in b.keys:
-      if k in result: continue
-      result[k] = b[k]
-    return
-  return b
+proc mergeToolCallJson*(a, b: JsonNode) =
+  doAssert b.kind == JArray
+  for jso in b:
+    while len(a) <= jso["index"].getInt:
+      a.add %*{
+        "id": "",
+        "type": "function",
+        "function": %*{
+          "name": "",
+          "arguments": ""
+        }
+      }
+  for jso in b:
+    let i = jso["index"].getInt
+    if "id" in jso:
+      a[i]["id"] = jso["id"]
+    if "function" in jso:
+      if "name" in jso["function"]:
+        a[i]["function"]["name"] = jso["function"]["name"]
+      if "arguments" in jso["function"]:
+        a[i]["function"]["arguments"] = %(a[i]["function"]["arguments"].getStr & jso["function"]["arguments"].getStr)

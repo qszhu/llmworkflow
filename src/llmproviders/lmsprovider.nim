@@ -113,7 +113,8 @@ method chatCompletionStream*(self: LmsProvider,
   proc chatCb(chunk: LmChatCompletionChunk) =
     contentCb(chunk.content)
     if chunk.toolCalls != nil:
-      toolCalls = merge(toolCalls, chunk.toolCalls)
+      logging.debug chunk.toolCalls
+      toolCalls.mergeToolCallJson(chunk.toolCalls)
 
   await self.client.chatStream(model,
     messages = messages.messages,
@@ -127,6 +128,7 @@ method chatCompletionStream*(self: LmsProvider,
     return
 
   while toolCalls.len > 0:
+    logging.debug toolCalls
     for toolCall in toolCalls:
       let tc = toolCall.newLmToolCall
       logging.debug "calling: ", tc.function.name
