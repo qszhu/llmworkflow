@@ -54,6 +54,12 @@ method addUserMessage*(self: LmsProvider, msgs: LlmMessages, content: string) =
     "content": content,
   }
 
+method addUserMessage*(self: LmsProvider, msgs: LlmMessages, content: LlmMessageContent) =
+  msgs.messages.add %*{
+    "role": "user",
+    "content": content.toJson,
+  }
+
 method addToolCalls*(self: LmsProvider, msgs: LlmMessages, toolCalls: seq[JsonNode]) =
   msgs.messages.add %*{
     "role": "assistant",

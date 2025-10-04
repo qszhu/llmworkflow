@@ -1,5 +1,9 @@
 import std/[
+  base64,
   json,
+  os,
+  tempfiles,
+  strformat,
 ]
 
 
@@ -25,3 +29,11 @@ proc mergeToolCallJson*(a, b: JsonNode) =
         a[i]["function"]["name"] = jso["function"]["name"]
       if "arguments" in jso["function"]:
         a[i]["function"]["arguments"] = %(a[i]["function"]["arguments"].getStr & jso["function"]["arguments"].getStr)
+
+proc convertImage*(fn: string, size = "1024x1024"): string =
+  let (cfile, path) = createTempFile("llmblock_", ".jpg")
+  cfile.close
+  let cmd = &"magick {fn} -resize {size} {path}"
+  doAssert execShellCmd(cmd) == 0
+  result = readFile(path).encode
+  removeFile(path)

@@ -19,6 +19,9 @@ method addSystemMessage*(self: LlmProvider, msgs: LlmMessages, content: string) 
 method addUserMessage*(self: LlmProvider, msgs: LlmMessages, content: string) {.base.} =
   raise newException(CatchableError, "Not implemented")
 
+method addUserMessage*(self: LlmProvider, msgs: LlmMessages, content: LlmMessageContent) {.base.} =
+  raise newException(CatchableError, "Not implemented")
+
 method addToolCalls*(self: LlmProvider, msgs: LlmMessages, toolCalls: seq[JsonNode]) {.base.} =
   raise newException(CatchableError, "Not implemented")
 

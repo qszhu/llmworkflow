@@ -1,9 +1,12 @@
 import std/[
+  os,
+  strformat,
   xmltree,
 ]
 
 import llmtypes
 import llmproviders/lmsprovider
+import utils
 
 export xmltree, llmtypes
 
@@ -17,6 +20,28 @@ proc newLlmProvider(xml: XmlNode): LlmProvider =
   else:
     raise newException(ValueError, "unknown llm provider type: " & kind)
 
+proc processImageAttachment(xml: XmlNode): string =
+  let fn = xml.child("path")[0].text
+  let (_, _, ext) = fn.splitFile
+  let mimeType =
+    case ext
+    of ".jpg", ".jpeg":
+      "image/jpeg"
+    else:
+      raise newException(ValueError, "unsupported image extension: " & ext)
+  let data = convertImage(fn)
+  return &"data:{mimeType};base64,{data}"
+
+proc processAttachments(xml: XmlNode): LlmMessageContent =
+  result = newLlmMessageContent()
+  if xml == nil: return
+  for child in xml.items:
+    case child.tag
+    of "image":
+      result.addImageData processImageAttachment(child)
+    else:
+      raise newException(ValueError, "unknown attachment type: " & child.tag)
+
 proc newLlmMessages(provider: LlmProvider, xml: XmlNode): LlmMessages =
   result = newLlmMessages()
   for msg in xml:
@@ -28,11 +53,15 @@ proc newLlmMessages(provider: LlmProvider, xml: XmlNode): LlmMessages =
       provider.addSystemMessage(result, content)
     of "user":
       provider.addUserMessage(result, content)
+      let attachments = msg.child("attachments")
+      let attachmentContent = processAttachments(attachments)
+      provider.addUserMessage(result, attachmentContent)
     else:
       raise newException(ValueError, "unknown message role: " & role)
 
 proc newLlmToolHost(xml: XmlNode): LlmToolHost =
   result = newLlmToolHost()
+  if xml == nil: return
   for server in xml:
     result.addServer server.innerText
 
