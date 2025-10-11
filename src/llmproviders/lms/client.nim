@@ -87,3 +87,24 @@ proc chatStream*(self: LmsClient,
       (ok, buf) = await res.bodyStream.read
   finally:
     client.close
+
+proc embedding*(self: LmsClient,
+  model: string,
+  input: seq[string],
+  host = "",
+): Future[LmList[LmEmbedding]] {.async.} =
+  let url = self.getHost(host) / "embeddings"
+  var data = %*{
+    "model": model,
+    "input": input,
+  }
+  let res = await request(url, data = data, httpMethod = HttpPost)
+  res.newLmList(newLmEmbedding)
+
+
+
+when isMainModule:
+  let model = "text-embedding-qwen3-embedding-8b"
+  let host = "http://localhost:1234/api/v0"
+  let client = newLmsClient(host)
+  echo waitFor client.embedding(model, @["hello"])

@@ -38,6 +38,9 @@ proc newLmList*[T](jso: JsonNode, fromJson: FromJson[T]): LmList[T] =
   result.raw = jso
   result.data = jso["data"].mapIt(it.fromJson)
 
+proc `[]`*[T](self: LmList[T], i: int): T {.inline.} =
+  self.data[i]
+
 proc `$`*[T](self: LmList[T]): string {.inline.} =
   $self.data
 
@@ -139,3 +142,17 @@ proc newLmChatCompletionChunk*(jso: JsonNode): LmChatCompletionChunk =
 
 proc `$`*(self: LmChatCompletionChunk): string {.inline.} =
   self.content
+
+type
+  LmEmbedding* = ref object
+    raw*: JsonNode
+    embedding*: seq[float]
+
+proc newLmEmbedding*(jso: JsonNode): LmEmbedding =
+  doAssert jso["object"].getStr == "embedding"
+  result.new
+  result.raw = jso
+  result.embedding = jso["embedding"].mapIt(it.getFloat)
+
+proc `$`*(self: LmEmbedding): string {.inline.} =
+  &"Embedding: {self.embedding.len}"
