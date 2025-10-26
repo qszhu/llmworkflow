@@ -1,6 +1,7 @@
 import std/[
   os,
   strformat,
+  strutils,
   xmltree,
 ]
 
@@ -20,7 +21,7 @@ proc newLlmProvider(xml: XmlNode): LlmProvider =
   else:
     raise newException(ValueError, "unknown llm provider type: " & kind)
 
-proc processImageAttachment(xml: XmlNode): string =
+proc processImageAttachment(xml: XmlNode): (string, int, int) =
   let fn = xml.child("path")[0].text
   let (_, _, ext) = fn.splitFile
   let mimeType =
@@ -29,8 +30,8 @@ proc processImageAttachment(xml: XmlNode): string =
       "image/jpeg"
     else:
       raise newException(ValueError, "unsupported image extension: " & ext)
-  let data = convertImage(fn)
-  return &"data:{mimeType};base64,{data}"
+  let (data, width, height) = convertImage(fn)
+  return (&"data:{mimeType};base64,{data}", width, height)
 
 proc processAttachments(xml: XmlNode): LlmMessageContent =
   result = newLlmMessageContent()
@@ -38,7 +39,8 @@ proc processAttachments(xml: XmlNode): LlmMessageContent =
   for child in xml.items:
     case child.tag
     of "image":
-      result.addImageData processImageAttachment(child)
+      let (data, w, h) = processImageAttachment(child)
+      result.addImageData(data, w, h)
     else:
       raise newException(ValueError, "unknown attachment type: " & child.tag)
 
@@ -47,15 +49,23 @@ proc newLlmMessages(provider: LlmProvider, xml: XmlNode): LlmMessages =
   for msg in xml:
     doAssert msg.tag == "message"
     let role = msg.child("role").innerText
-    let content = msg.child("content")[0].text
+    var content = ""
+    if msg.child("content") != nil:
+      content = msg.child("content")[0].text
     case role
     of "system":
-      provider.addSystemMessage(result, content)
+      if content.len > 0:
+        provider.addSystemMessage(result, content)
     of "user":
-      provider.addUserMessage(result, content)
       let attachments = msg.child("attachments")
       let attachmentContent = processAttachments(attachments)
-      provider.addUserMessage(result, attachmentContent)
+      if not attachmentContent.isEmpty:
+        if content.len > 0:
+          attachmentContent.addText(content)
+        provider.addUserMessage(result, attachmentContent)
+      else:
+        if content.len > 0:
+          provider.addUserMessage(result, content)
     else:
       raise newException(ValueError, "unknown message role: " & role)
 
@@ -71,4 +81,5 @@ proc newLlmBlock*(xml: XmlNode): LlmBlock =
   let model = xml.child("model").innerText
   let messages = provider.newLlmMessages(xml.child("messages"))
   let toolHost = newLlmToolHost(xml.child("toolHost"))
-  newLlmBlock(provider, model, messages, toolHost = toolHost)
+  let stream = xml.child("stream").innerText.toLowerAscii == "true"
+  newLlmBlock(provider, model, messages, toolHost = toolHost, stream = stream)

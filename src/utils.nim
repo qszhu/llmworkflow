@@ -1,9 +1,12 @@
 import std/[
   base64,
   json,
+  logging,
   os,
+  osproc,
   tempfiles,
   strformat,
+  strutils,
 ]
 
 
@@ -30,10 +33,18 @@ proc mergeToolCallJson*(a, b: JsonNode) =
       if "arguments" in jso["function"]:
         a[i]["function"]["arguments"] = %(a[i]["function"]["arguments"].getStr & jso["function"]["arguments"].getStr)
 
-proc convertImage*(fn: string, size = "1024x1024"): string =
+proc getImageDim*(fn: string): (int, int) =
+  let cmd = &"identify -format \"%wx%h\" {fn}"
+  let output = execProcess(cmd)
+  let parts = output.strip.split("x")
+  (parts[0].parseInt, parts[1].parseInt)
+
+proc convertImage*(fn: string, size = "1960x1960"): (string, int, int) =
   let (cfile, path) = createTempFile("llmblock_", ".jpg")
   cfile.close
   let cmd = &"magick {fn} -resize {size} {path}"
   doAssert execShellCmd(cmd) == 0
-  result = readFile(path).encode
+  let (width, height) = getImageDim(path)
+  logging.debug (width, height, path)
+  result = (readFile(path).encode, width, height)
   removeFile(path)

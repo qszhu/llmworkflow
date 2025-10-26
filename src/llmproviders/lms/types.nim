@@ -67,6 +67,7 @@ type
 
 proc newRespStats(jso: JsonNode): RespStats =
   result.new
+  if jso == nil: return
   result.raw = jso
   result.tokensPerSecond = jso{"tokens_per_second"}.getFloat
   result.timeToFirstToken = jso{"time_to_first_token"}.getFloat
@@ -114,9 +115,9 @@ proc newLmChatCompletion*(jso: JsonNode): LmChatCompletion =
   result.raw = jso
   result.contents = jso["choices"].mapIt(it["message"]{"content"}.getStr)
   result.usage = jso["usage"].newTokenUsage
-  result.stats = jso["stats"].newRespStats
+  result.stats = jso{"stats"}.newRespStats
   result.toolCalls = jso["choices"].mapIt(
-    it["message"]{"tool_calls"}.mapIt(it.newLmToolCall))
+    it["message"]{"tool_calls"}.getElems.mapIt(it.newLmToolCall))
     .foldl(a & b)
 
 proc `$`*(self: LmChatCompletion): string {.inline.} =

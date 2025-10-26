@@ -18,6 +18,8 @@ when isMainModule:
   let xml = loadXml(paramStr(1))
   let blk = newLlmBlock(xml)
 
-  waitFor blk.run()
-  for output in blk.outputs:
-    echo output
+  proc chatCb(text: string) =
+    stdout.write text
+    stdout.flushFile
+
+  waitFor blk.run(cb = chatCb)

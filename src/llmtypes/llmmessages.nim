@@ -26,13 +26,16 @@ proc addText*(self: LlmMessageContent, text: string) =
     "text": text,
   }
 
-proc addImageData*(self: LlmMessageContent, data: string) =
+proc addImageData*(self: LlmMessageContent, data: string, width, height: int) =
   self.contents.add %*{
     "type": "image_url",
     "image_url": %*{
-      "url": data
-    }
+      "url": data,
+    },
   }
 
 proc toJson*(self: LlmMessageContent): JsonNode {.inline.} =
   %*(self.contents)
+
+proc isEmpty*(self: LlmMessageContent): bool {.inline.} =
+  self.contents.len == 0
